@@ -1,0 +1,32 @@
+---
+# ============================================================
+# CORE SERVICES: Traefik, AdGuard, Authentik, Vaultwarden, Portainer
+# These services form the infrastructure backbone of the NAS stack.
+# ============================================================
+
+# --- PRE-FLIGHT: Docker network shared by all containers ---
+- name: "Global | Create proxy network"
+  community.docker.docker_network:
+    name: proxy_net
+    state: present
+  tags: [infra, network]
+
+- name: "Core Services | Deploy Traefik"
+  ansible.builtin.import_tasks: traefik.yml
+  tags: [traefik]
+
+- name: "Core Services | Deploy AdGuard Home"
+  ansible.builtin.import_tasks: adguard.yml
+  tags: [adguard]
+
+- name: "Core Services | Deploy Authentik"
+  ansible.builtin.import_tasks: authentik.yml
+  tags: [authentik]
+
+- name: "Core Services | Deploy Vaultwarden"
+  ansible.builtin.import_tasks: vaultwarden.yml
+  tags: [vaultwarden]
+
+- name: "Core Services | Deploy Portainer"
+  ansible.builtin.import_tasks: portainer.yml
+  tags: [portainer]

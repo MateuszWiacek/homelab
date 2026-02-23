@@ -1,0 +1,28 @@
+---
+- name: "AdGuard Home | Create config directory"
+  ansible.builtin.file:
+    path: "{{ docker_config_dir }}/adguard"
+    state: directory
+    mode: '0755'
+
+- name: "AdGuard Home | Create data directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ docker_data_dir }}/adguard/work"
+    - "{{ docker_data_dir }}/adguard/conf"
+
+- name: "AdGuard Home | Deploy docker-compose file"
+  ansible.builtin.template:
+    src: "adguard/docker-compose.yml.j2"
+    dest: "{{ docker_config_dir }}/adguard/docker-compose.yml"
+    mode: '0644'
+  notify: Restart AdGuard
+
+- name: "AdGuard Home | Start containers"
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/adguard"
+  changed_when: false

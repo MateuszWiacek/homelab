@@ -1,0 +1,31 @@
+---
+domain_name: "homelab.local"
+timezone: "Europe/Warsaw"
+nas_ip: "10.0.0.10"
+proxmox_ip: "10.0.0.20"
+public_dns_servers:
+  - "1.1.1.1"
+  - "8.8.8.8"
+
+# === Public service domains ===
+traefik_domain: "traefik.{{ domain_name }}"
+authentik_domain: "authentik.{{ domain_name }}"
+adguard_domain: "adguard.{{ domain_name }}"
+vaultwarden_domain: "vaultwarden.{{ domain_name }}"
+portainer_domain: "portainer.{{ domain_name }}"
+truenas_domain: "nas.{{ domain_name }}"
+proxmox_domain: "pve.{{ domain_name }}"
+
+# === NAS local endpoints used by Traefik file provider ===
+truenas_web_port: 81
+proxmox_web_port: 8006
+adguard_admin_port: 8080
+adguard_setup_port: 3000
+traefik_dashboard_port: 8090
+
+truenas_internal_url: "http://{{ nas_ip }}:{{ truenas_web_port }}"
+proxmox_internal_url: "https://{{ proxmox_ip }}:{{ proxmox_web_port }}"
+
+# === Shared UID/GID for mounted app data ===
+app_uid: 1000
+app_gid: 1000

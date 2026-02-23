@@ -1,0 +1,21 @@
+---
+- name: "Vaultwarden | Create config directory"
+  ansible.builtin.file:
+    path: "{{ docker_config_dir }}/vaultwarden"
+    state: directory
+    owner: "{{ app_uid }}"
+    group: "{{ app_gid }}"
+    mode: '0755'
+
+- name: "Vaultwarden | Deploy docker-compose file"
+  ansible.builtin.template:
+    src: "vaultwarden/docker-compose.yml.j2"
+    dest: "{{ docker_config_dir }}/vaultwarden/docker-compose.yml"
+    mode: '0644'
+  notify: Restart Vaultwarden
+
+- name: "Vaultwarden | Start container"
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/vaultwarden"
+  changed_when: false

@@ -1,0 +1,44 @@
+---
+services:
+  traefik:
+    image: traefik:{{ traefik_version }}
+    container_name: traefik
+    dns:
+{% for dns_server in (public_dns_servers | default(['1.1.1.1', '8.8.8.8'])) %}
+      - {{ dns_server }}
+{% endfor %}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy_net
+    ports:
+      - "80:80"
+      - "443:443"
+      - "636:636"
+{% if traefik_publish_api_port %}
+      - "{{ traefik_dashboard_port }}:8080"
+{% endif %}
+    environment:
+      - CF_DNS_API_TOKEN={{ cloudflare_token }}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ docker_config_dir }}/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - {{ docker_data_dir }}/traefik/acme.json:/acme.json
+      - {{ docker_config_dir }}/traefik/dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro
+{% if traefik_dashboard_via_router %}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`{{ traefik_domain }}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=myresolver"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+{% endif %}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+networks:
+  proxy_net:
+    external: true

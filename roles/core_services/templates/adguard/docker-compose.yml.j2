@@ -1,0 +1,46 @@
+---
+services:
+  adguard:
+    container_name: adguard
+    image: adguard/adguardhome:{{ adguard_version }}
+    restart: unless-stopped
+    
+    # Network configuration
+    networks:
+      - proxy_net
+      - default
+
+    environment:
+      - TZ={{ timezone }}
+
+    volumes:
+      - {{ docker_data_dir }}/adguard/work:/opt/adguardhome/work
+      - {{ docker_data_dir }}/adguard/conf:/opt/adguardhome/conf
+
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+{% if adguard_setup_mode %}
+      - "{{ adguard_setup_port }}:3000/tcp"
+{% endif %}
+{% if adguard_publish_http_port %}
+      - "{{ adguard_admin_port }}:80/tcp"
+{% endif %}
+
+    # Traefik Configuration Labels
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adguard.rule=Host(`{{ adguard_domain }}`)"
+      - "traefik.http.routers.adguard.entrypoints=websecure"
+      - "traefik.http.routers.adguard.tls.certresolver=myresolver"
+      - "traefik.http.services.adguard.loadbalancer.server.port=80"
+{% if enable_authentik_protection %}
+      - "traefik.http.routers.adguard.middlewares=authentik-auth@file"
+{% endif %}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+networks:
+  proxy_net:
+    external: true

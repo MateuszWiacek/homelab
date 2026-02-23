@@ -1,0 +1,62 @@
+http:
+  middlewares:
+    authentik-auth:
+      forwardAuth:
+        address: "{{ authentik_outpost_url }}"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - "X-authentik-username"
+          - "X-authentik-groups"
+          - "X-authentik-email"
+          - "X-authentik-name"
+          - "X-authentik-uid"
+
+  routers:
+    truenas:
+      rule: "Host(`{{ truenas_domain }}`)"
+      service: "truenas"
+      entryPoints:
+        - "websecure"
+      tls:
+        certResolver: "myresolver"
+
+    proxmox:
+      rule: "Host(`{{ proxmox_domain }}`)"
+      service: "proxmox"
+      entryPoints:
+        - "websecure"
+      tls:
+        certResolver: "myresolver"
+
+  services:
+    truenas:
+      loadBalancer:
+        servers:
+          - url: "{{ truenas_internal_url }}"
+        passHostHeader: true
+
+    proxmox:
+      loadBalancer:
+        servers:
+          - url: "{{ proxmox_internal_url }}"
+        serversTransport: "insecureTransport"
+
+  serversTransports:
+    insecureTransport:
+      insecureSkipVerify: true
+
+tcp:
+  routers:
+    ldap-secure:
+      entryPoints:
+        - "ldaps"
+      rule: "HostSNI(`{{ authentik_domain }}`)"
+      service: "ldap-outpost"
+      tls:
+        certResolver: "myresolver"
+
+  services:
+    ldap-outpost:
+      loadBalancer:
+        servers:
+          - address: "authentik-ldap-outpost:3389"

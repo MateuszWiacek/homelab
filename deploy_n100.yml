@@ -1,0 +1,15 @@
+---
+- name: Setup TrueNAS Docker Environment
+  hosts: n100
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - secrets.yml
+
+  roles:
+    # TrueNAS SCALE ships with Docker — no host-install role required here.
+    - role: ssh_hardening
+      tags: ['security', 'ssh', 'hardening']
+    - role: core_services  # Traefik, AdGuard, Authentik, Vaultwarden, Portainer
+      tags: ['core']

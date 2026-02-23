@@ -1,0 +1,53 @@
+---
+- name: "Authentik | Create base configuration directory"
+  ansible.builtin.file:
+    path: "{{ docker_config_dir }}/authentik"
+    state: directory
+    mode: '0755'
+
+# Authentik container expects writable dirs; default UID/GID is 1000.
+- name: "Authentik | Create persistent subdirectories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ authentik_uid }}"
+    group: "{{ authentik_gid }}"
+    mode: '0775'
+  loop:
+    - "{{ docker_config_dir }}/authentik/postgres"
+    - "{{ docker_config_dir }}/authentik/redis"
+    - "{{ docker_config_dir }}/authentik/media"
+    - "{{ docker_config_dir }}/authentik/custom-templates"
+
+- name: "Authentik | Create LDAP outpost data directory"
+  ansible.builtin.file:
+    path: "{{ docker_data_dir }}/authentik"
+    state: directory
+    mode: '0755'
+
+- name: "Authentik | Deploy .env file"
+  ansible.builtin.template:
+    src: "authentik/env.j2"
+    dest: "{{ docker_config_dir }}/authentik/.env"
+    mode: '0600'
+  no_log: true
+  notify: "Restart Authentik"
+
+- name: "Authentik | Deploy docker-compose file"
+  ansible.builtin.template:
+    src: "authentik/docker-compose.yml.j2"
+    dest: "{{ docker_config_dir }}/authentik/docker-compose.yml"
+    mode: '0644'
+  notify: "Restart Authentik"
+
+- name: "Authentik | Deploy LDAP Outpost compose file"
+  ansible.builtin.template:
+    src: "authentik/ldap-outpost.yml.j2"
+    dest: "{{ docker_config_dir }}/authentik/ldap-outpost.yml"
+    mode: '0600'
+  no_log: true
+
+- name: "Authentik | Start stack with LDAP Outpost"
+  ansible.builtin.shell:
+    cmd: "docker compose -f docker-compose.yml -f ldap-outpost.yml up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/authentik"

@@ -1,0 +1,35 @@
+---
+services:
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:{{ portainer_version }}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      # Map the Docker socket to allow Portainer to manage containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent storage for Portainer database and settings
+      - {{ docker_data_dir }}/portainer:/data
+    networks:
+      - proxy_net
+    # Apply strict memory limits to protect ZFS ARC
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    # Traefik configuration for edge routing and SSL termination
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`{{ portainer_domain }}`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver=myresolver"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+{% if enable_authentik_protection %}
+      # Optional: Protect Portainer with Authentik SSO
+      - "traefik.http.routers.portainer.middlewares=authentik-auth@file"
+{% endif %}
+
+networks:
+  proxy_net:
+    external: true

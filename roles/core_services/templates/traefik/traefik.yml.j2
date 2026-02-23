@@ -1,0 +1,56 @@
+---
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+api:
+  dashboard: true
+  # API is always exposed inside the container on :8080.
+  # Host exposure is controlled in docker-compose via traefik_publish_api_port.
+  insecure: true
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: "proxy_net"
+  file:
+    filename: "/etc/traefik/dynamic_conf.yml"
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: myresolver
+        # Define wildcard domain for Let's Encrypt
+        domains:
+          - main: "{{ domain_name }}"
+            sans:
+              - "*.{{ domain_name }}"
+
+  ldaps:
+    address: ":636"
+
+certificatesResolvers:
+  myresolver:
+    acme:
+      # 'cert_email' is defined in secrets.yml
+      email: "{{ cert_email }}"
+      # FIX: Absolute path is required to match the docker volume mount
+      storage: "/acme.json"
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+{% for dns_server in (public_dns_servers | default(['1.1.1.1', '8.8.8.8'])) %}
+          - "{{ dns_server }}:53"
+{% endfor %}

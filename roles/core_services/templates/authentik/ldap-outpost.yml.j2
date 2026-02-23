@@ -1,0 +1,30 @@
+---
+services:
+  authentik-ldap-outpost:
+    image: ghcr.io/goauthentik/ldap:{{ authentik_version }}
+    container_name: authentik-ldap-outpost
+    restart: unless-stopped
+    # Port 389 stays on host for plain LDAP access
+    ports:
+      - "389:3389"
+    # Port 636 is handled by Traefik TCP router
+    environment:
+      AUTHENTIK_HOST: "https://{{ authentik_domain }}"
+      AUTHENTIK_INSECURE: "false"
+      AUTHENTIK_TOKEN: "{{ authentik_ldap_token }}"
+    # Force local resolution for the auth domain to bypass potential hairpin NAT
+    extra_hosts:
+      - "{{ authentik_domain }}:{{ nas_ip }}"
+    networks:
+      # Attach to external proxy for Traefik routing
+      - proxy_net
+      # Attach to default network to merge properly with main Authentik stack
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  proxy_net:
+    external: true

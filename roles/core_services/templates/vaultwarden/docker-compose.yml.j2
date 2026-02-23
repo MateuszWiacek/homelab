@@ -1,0 +1,30 @@
+---
+services:
+  vaultwarden:
+    image: vaultwarden/server:{{ vaultwarden_version }}
+    container_name: vaultwarden
+    restart: unless-stopped
+    environment:
+      - SIGNUPS_ALLOWED={{ vaultwarden_signups_allowed | lower }}
+      - TZ={{ timezone }}
+      - DOMAIN=https://{{ vaultwarden_domain }}
+    volumes:
+      # Persistent data storage for the encrypted vault database
+      - {{ docker_config_dir }}/vaultwarden:/data
+    networks:
+      - proxy_net
+    labels:
+      - "traefik.enable=true"
+      # Routing through Traefik using your domain
+      - "traefik.http.routers.vaultwarden.rule=Host(`{{ vaultwarden_domain }}`)"
+      - "traefik.http.routers.vaultwarden.entrypoints=websecure"
+      - "traefik.http.routers.vaultwarden.tls.certresolver=myresolver"
+      # Vaultwarden's internal web server port
+      - "traefik.http.services.vaultwarden.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+networks:
+  proxy_net:
+    external: true

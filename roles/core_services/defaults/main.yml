@@ -1,0 +1,24 @@
+---
+# Authentik ForwardAuth middleware toggle
+# Set to true after Authentik is configured to enforce SSO on protected services
+enable_authentik_protection: false
+
+# Authentik outpost URL used by Traefik ForwardAuth middleware
+authentik_outpost_url: "http://authentik-server:9000/outpost.goauthentik.io/auth/traefik"
+authentik_postgres_image: "docker.io/library/postgres:16-alpine"
+authentik_redis_image: "docker.io/library/redis:alpine"
+authentik_uid: "1000"
+authentik_gid: "1000"
+
+# Traefik defaults (override in group_vars for environment-specific behavior)
+traefik_version: "v3"
+traefik_publish_api_port: false
+traefik_dashboard_via_router: true
+
+# AdGuard setup wizard port toggle
+# Set to true only for first deploy to access the setup wizard on port 3000.
+# Switch back to false immediately after wizard is complete and redeploy.
+adguard_setup_mode: false
+
+# Keep false by default; set true if you need host access on :8080.
+adguard_publish_http_port: false

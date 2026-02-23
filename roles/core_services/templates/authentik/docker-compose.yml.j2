@@ -1,0 +1,107 @@
+---
+services:
+  postgresql:
+    image: "{{ authentik_postgres_image }}"
+    container_name: authentik-db
+    restart: unless-stopped
+    command: ["postgres", "-c", "max_connections=200"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - {{ docker_config_dir }}/authentik/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${AUTHENTIK_POSTGRESQL__PASSWORD}
+      POSTGRES_USER: ${AUTHENTIK_POSTGRESQL__USER}
+      POSTGRES_DB: ${AUTHENTIK_POSTGRESQL__NAME}
+    networks:
+      - proxy_net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+
+  redis:
+    image: "{{ authentik_redis_image }}"
+    container_name: authentik-redis
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - {{ docker_config_dir }}/authentik/redis:/data
+    networks:
+      - proxy_net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  server:
+    image: ghcr.io/goauthentik/server:{{ authentik_version }}
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+    volumes:
+      - {{ docker_config_dir }}/authentik/media:/media
+      - {{ docker_config_dir }}/authentik/custom-templates:/templates
+    env_file:
+      - .env
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - proxy_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authentik.rule=Host(`{{ authentik_domain }}`)"
+      - "traefik.http.routers.authentik.entrypoints=websecure"
+      - "traefik.http.routers.authentik.tls.certresolver=myresolver"
+      - "traefik.http.services.authentik.loadbalancer.server.port=9000"
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  worker:
+    image: ghcr.io/goauthentik/server:{{ authentik_version }}
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{ docker_config_dir }}/authentik/media:/media
+      - {{ docker_config_dir }}/authentik/custom-templates:/templates
+    env_file:
+      - .env
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - proxy_net
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+networks:
+  proxy_net:
+    external: true

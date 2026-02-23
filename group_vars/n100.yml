@@ -1,0 +1,49 @@
+---
+# === Connection & Identity ===
+ansible_user: admin
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+ansible_become: true
+
+# === ZFS Paths (NAS local storage) ===
+# SSD Pool
+docker_root_dir: "/mnt/ssd_apps/appdata/docker"
+docker_config_dir: "{{ docker_root_dir }}/config"
+docker_data_dir: "{{ docker_root_dir }}/data"
+
+# HDD Pool
+media_root_dir: "/mnt/storage_1/media"
+
+# === Traefik compatibility (production/main naming & access) ===
+# Use rolling v3 patch line for Docker API compatibility on newer engines.
+# Pin exact patch only if you intentionally need a fixed version.
+traefik_version: "v3"
+traefik_publish_api_port: true
+traefik_dashboard_via_router: false
+
+# === Authentik ===
+authentik_version: "2025.12.3"
+authentik_postgres_image: "docker.io/library/postgres:16-alpine"
+authentik_redis_image: "docker.io/library/redis:alpine"
+
+# === AdGuard Home ===
+# Use latest only for initial bootstrap when stable versions are not yet known.
+# After validation, pin an exact tag for reproducible deploys.
+adguard_version: "latest"
+
+# === Vaultwarden ===
+# Use latest only for initial bootstrap when stable versions are not yet known.
+# After validation, pin an exact tag for reproducible deploys.
+vaultwarden_version: "latest"
+# Set to true only during initial setup to allow first account creation.
+# Must be switched to false and redeployed immediately after.
+vaultwarden_signups_allowed: false
+
+# === Portainer ===
+# Use latest only for initial bootstrap when stable versions are not yet known.
+# After validation, pin an exact tag for reproducible deploys.
+portainer_version: "latest"
+
+# === AdGuard compatibility ===
+# Keep these ports open to match existing production deployment behavior.
+adguard_setup_mode: true
+adguard_publish_http_port: true

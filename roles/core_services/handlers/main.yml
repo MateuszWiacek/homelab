@@ -1,0 +1,25 @@
+---
+- name: Restart Traefik
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/traefik"
+
+- name: Restart AdGuard
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/adguard"
+
+- name: Restart Authentik
+  ansible.builtin.shell:
+    cmd: "docker compose -f docker-compose.yml -f ldap-outpost.yml up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/authentik"
+
+- name: Restart Vaultwarden
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/vaultwarden"
+
+- name: Restart Portainer
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/portainer"

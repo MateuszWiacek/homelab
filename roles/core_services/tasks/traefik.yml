@@ -1,0 +1,44 @@
+---
+- name: "Traefik | Create config and data directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ docker_config_dir }}/traefik"
+    - "{{ docker_data_dir }}/traefik"
+
+- name: "Traefik | Deploy main configuration"
+  ansible.builtin.template:
+    src: "traefik/traefik.yml.j2"
+    dest: "{{ docker_config_dir }}/traefik/traefik.yml"
+    mode: '0644'
+  notify: Restart Traefik
+
+- name: "Traefik | Deploy dynamic configuration"
+  ansible.builtin.template:
+    src: "traefik/dynamic_conf.yml.j2"
+    dest: "{{ docker_config_dir }}/traefik/dynamic_conf.yml"
+    mode: '0644'
+  notify: Restart Traefik
+
+- name: "Traefik | Ensure acme.json exists with correct permissions"
+  ansible.builtin.file:
+    path: "{{ docker_data_dir }}/traefik/acme.json"
+    state: touch
+    mode: '0600'
+    modification_time: preserve
+    access_time: preserve
+
+- name: "Traefik | Deploy docker-compose file"
+  ansible.builtin.template:
+    src: "traefik/docker-compose.yml.j2"
+    dest: "{{ docker_config_dir }}/traefik/docker-compose.yml"
+    mode: '0600'
+  no_log: true
+  notify: Restart Traefik
+
+- name: "Traefik | Start container"
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/traefik"

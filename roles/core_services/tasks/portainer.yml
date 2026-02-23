@@ -1,0 +1,25 @@
+---
+- name: "Portainer | Create configuration directory"
+  ansible.builtin.file:
+    path: "{{ docker_config_dir }}/portainer"
+    state: directory
+    mode: '0755'
+
+- name: "Portainer | Create persistent data directory"
+  ansible.builtin.file:
+    path: "{{ docker_data_dir }}/portainer"
+    state: directory
+    mode: '0755'
+
+- name: "Portainer | Deploy docker-compose file"
+  ansible.builtin.template:
+    src: "portainer/docker-compose.yml.j2"
+    dest: "{{ docker_config_dir }}/portainer/docker-compose.yml"
+    mode: '0644'
+  notify: Restart Portainer
+
+- name: "Portainer | Start stack"
+  ansible.builtin.shell:
+    cmd: "docker compose up -d --remove-orphans"
+    chdir: "{{ docker_config_dir }}/portainer"
+  changed_when: false
