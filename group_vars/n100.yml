@@ -19,6 +19,7 @@ media_root_dir: "/mnt/storage_1/media"
 traefik_version: "v3"
 traefik_publish_api_port: true
 traefik_dashboard_via_router: false
+enable_remote_apps_routes: true
 
 # === Authentik ===
 authentik_version: "2025.12.3"
@@ -43,7 +44,17 @@ vaultwarden_signups_allowed: false
 # After validation, pin an exact tag for reproducible deploys.
 portainer_version: "latest"
 
+# === Jellyfin ===
+# Use latest only for initial bootstrap when stable versions are not yet known.
+# After validation, pin an exact tag for reproducible deploys.
+jellyfin_version: "latest"
+
+# === Homepage ===
+# Use latest only for initial bootstrap when stable versions are not yet known.
+# After validation, pin an exact tag for reproducible deploys.
+homepage_version: "latest"
+
 # === AdGuard compatibility ===
-# Keep these ports open to match existing production deployment behavior.
-adguard_setup_mode: true
+# Keep setup mode disabled by default. Enable only for first-run wizard, then disable again.
+adguard_setup_mode: false
 adguard_publish_http_port: true

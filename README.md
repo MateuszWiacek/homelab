@@ -1,8 +1,8 @@
-# HomeLab — Core Stack
+# HomeLab with Ansible
 
 I like my infrastructure the same way I like CI/CD: **boring, repeatable, recoverable**.
 
-This repo contains the core building blocks that make everything else sane:
+This is the **v1.1 release** — from core networking and identity to media and compute:
 
 - **AdGuard Home** — internal DNS (clean URLs)
 - **Traefik** — ingress + TLS (HTTPS on LAN, DNS-01 via Cloudflare)
@@ -10,12 +10,16 @@ This repo contains the core building blocks that make everything else sane:
 - **Vaultwarden** — self-hosted password vault under my backup policy
 - **Portainer** — quick container admin when I'm not at a real terminal
 
+In v1.1, this baseline is shipped together with media services (Jellyfin, Homepage) and the Ryzen app lane (Immich, Paperless-ngx, backups).
+
 > Public repo note: hostnames and IPs are intentionally example values. The real ones live in a private inventory.
 > For ACME/DNS-01 in real deployments, replace `.local` with your real registered domain.
 
 ---
 
-## What this repo includes
+## What this repo is actually showing
+
+If you're scanning this from LinkedIn, this is what I wanted to show:
 
 - DNS, TLS, and SSO wired together as one stack (not random services glued together)
 - Reproducible deploys with Ansible + templates + inventory-driven vars
@@ -26,22 +30,40 @@ This repo contains the core building blocks that make everything else sane:
 ## Network Architecture
 
 ```
-Client (LAN/WiFi)
-  │
-  │  DNS → clean names, no ip:port
-  ▼
-AdGuard Home  (10.0.0.10:53)
-  │
-  │  HTTPS everywhere on LAN (Cloudflare DNS-01, no inbound ports)
-  ▼
-Traefik  ─────────────────────┐
-  │                           │ ForwardAuth (optional per-service)
-  ▼                           │
-Authentik  ◄──────────────────┘   SSO + policies
-  │
-  ├──► Vaultwarden     https://vaultwarden.homelab.local
-  ├──► Portainer       https://portainer.homelab.local
-  └──► (anything you add later)
+┌─────────────────────────────────┐     ┌──────────────────────────────────┐
+│         NAS — Intel N100        │     │       Compute — Ryzen 5 6600H    │
+│         TrueNAS SCALE           │     │       Debian VM on Proxmox       │
+│                                 │     │                                  │
+│  Traefik    AdGuard Home        │     │  Immich       Paperless-ngx      │
+│  Authentik  Vaultwarden         │◄────│  PostgreSQL   AI model cache     │
+│  Jellyfin   Homepage            │ NFS │                                  │
+│  Portainer                      │     │  Heavy CPU/RAM workloads         │
+│                                 │     │  Local NVMe for latency-         │
+│  24/7, low power, ZFS storage   │     │  sensitive data                  │
+└─────────────────────────────────┘     └──────────────────────────────────┘
+```
+
+I split the lab by responsibility and power profile:
+
+```
+                    ┌───────────────┐
+Client (LAN/WiFi) → │ AdGuard (DNS) │ → https://service.<domain>
+                    └──────┬────────┘
+                           │
+                           v
+                    ┌───────────────┐
+                    │ Traefik (TLS) │  Cloudflare DNS-01 → valid certs on LAN
+                    └──────┬────────┘
+                           │ ForwardAuth (optional)
+                           v
+                    ┌───────────────┐
+                    │  Authentik    │  SSO + policies
+                    └──────┬────────┘
+                           │
+          ┌────────────────┴────────────────┐
+          v                                 v
+   NAS-local apps                      Remote apps (Ryzen VM)
+ (Vaultwarden, Jellyfin, etc.)        (Immich, Paperless, DBs)
 ```
 
 I keep routing/TLS in Traefik and identity in Authentik, so adding a new service is usually DNS + labels.
@@ -50,23 +72,60 @@ I keep routing/TLS in Traefik and identity in Authentik, so adding a new service
 
 ## Architecture Overview
 
-I split responsibilities by hardware profile and power usage.
+I split the lab by responsibility and power profile.
 
-### Node 1: NAS / Identity Layer (Intel N100)
+### Node 1 — NAS / Identity Layer (Intel N100)
 
-| Item | Value |
+| | |
 |---|---|
-| Hardware | Intel N100 (4-core, ~6W TDP) |
-| OS | TrueNAS SCALE |
-| Role | 24/7 always-on core services: DNS, reverse proxy, identity, management |
+| **Hardware** | Intel N100 (4-core, ~6W TDP) |
+| **OS** | TrueNAS SCALE |
+| **Role** | 24/7 backbone: storage + DNS + ingress + identity |
 
-The N100 stays on 24/7. In my tests it usually idles around 10W and goes up to ~35W under stress, so it is the right place for always-on services.
-This core profile deploys Traefik, AdGuard, Authentik, Vaultwarden, and Portainer.
+This box stays on. It's the "control plane" of the home network.
 
-ZFS ARC is intentionally protected. Docker containers on the NAS are kept memory-conscious to avoid competing with filesystem cache.
+Key detail: **ZFS stability wins**. Containers on the NAS are capped with Docker/Compose memory limits (and I verify the caps via `docker inspect … HostConfig.Memory`) so they don't starve ZFS ARC when something spikes. 
+
+Jellyfin lives here on purpose: Intel Quick Sync makes transcoding (even 4K → 1080p) cheap and predictable.
+
+This repo deploys the NAS stack as core + media. In v1.1, core services (Traefik, AdGuard Home, Authentik, Vaultwarden, Portainer), media (Jellyfin + Homepage), and the Ryzen app lane ship as one release.
+
+### Node 2 — Compute lane (AMD Ryzen 5 6600H)
+
+| | |
+|---|---|
+| **Hardware** | AMD Ryzen 5 6600H |
+| **OS** | Debian VM on Proxmox VE |
+| **Role** | "production" apps that actually want CPU/RAM |
+
+Immich and Paperless-ngx are not NAS-friendly workloads (AI/OCR + databases). I'd rather keep the NAS boring and let the Ryzen do the noisy work. This compute lane is included in v1.1.
 
 
+---
 
+## Constraints & success criteria
+
+- **Clean URLs**: `https://service.<domain>` instead of `10.0.0.10:8096` — no `ip:port` (wife's nightmare)
+- **No inbound exposure**: TLS via Cloudflare DNS-01, no open WAN ports
+- **HTTPS for user-facing apps on LAN**: fewer weird edge cases, cleaner trust model
+- **Storage first**: ZFS shouldn't crash because an app got hungry
+- **Household usability**: "wife test" passes via one homepage / dashboard
+
+> Docs note: `.homelab.local` is used in examples as a placeholder only. ACME DNS-01 requires a real registered domain.
+
+---
+
+## Storage — what lives where and why
+
+The 1Gbit link between nodes is fine for photos and documents. It's not fine for Postgres round-trips or model loading.
+
+| Data | Location | Why |
+|---|---|---|
+| PostgreSQL databases | Ryzen NVMe | DB queries shouldn't pay network latency tax |
+| Immich AI model cache | Ryzen NVMe | Avoid 1Gbit bottleneck on model startup |
+| Photos library | NAS HDD pool via NFS | ZFS integrity, capacity, snapshots |
+| Documents archive | NAS HDD pool via NFS | Central storage + cross-device access |
+| App configs | NAS SSD pool via NFS | Fast + snapshot-friendly |
 
 ---
 
@@ -79,7 +138,13 @@ ZFS ARC is intentionally protected. Docker containers on the NAS are kept memory
 | **Authentik over Authelia** | One identity source for users, groups, and policies. Easier to reason about access. |
 | **Vaultwarden self-hosted** | Password vault under my control, my backup policy. |
 | **Portainer** | "Phone-grade" admin when I'm away from a full shell. Complements, doesn't replace, Ansible. |
+| **Homepage** | One landing page for daily use + household usability. Non-technical users navigate without help. |
 | **Break-glass local admins kept** | SSO outage shouldn't mean locked out. Recovery beats purity. |
+| **TrueNAS SCALE on N100** | 24/7 low-power host with native container support. |
+| **Jellyfin on N100** | Intel Quick Sync = best performance-per-watt for transcoding. |
+| **Container RAM limits on NAS** | Protect ZFS ARC and keep storage stable under load. |
+| **Immich + Paperless-ngx on Ryzen** | AI/OCR + DB workloads get real compute; NAS stays responsive. |
+| **DB/cache on local NVMe (Ryzen)** | Lower latency + higher IOPS; avoid 1Gbit as the bottleneck. |
 
 ---
 
@@ -96,7 +161,15 @@ This isn’t a “threats list”. It’s a list of things I **consciously accep
 | **GUI tools vs IaC drift** | Fast admin actions when I’m away from a full shell. Convenience without hacks. | GUIs tempt “quick fixes” → drift and non-reproducible state. | GUI is an ops console, not the source of truth: changes end up in code; in incidents I note the hotfix and backport it to the repo. |
 | **`latest` tags during bootstrap** | Faster initial rollout while I validate the stack. | Reproducibility suffers and an update can surprise you. | After stabilization I pin exact tags; version bumps go through release notes/changelog, not by accident. |
 
-> **Rule:** if recovery is harder than purity, recovery wins.
+> **Rule:** if recovery is harder than purity, purity loses.
+
+---
+
+## Operational targets
+
+- **Power baseline**: N100 stays online 24/7 for core services. Ryzen is a VM — can be stopped without affecting core services.
+- **Storage stability**: ZFS ARC target ~4.7 GiB; containers are capped to avoid ARC starvation.
+- **Latency-sensitive paths**: DB and AI model caches stay on Ryzen NVMe — no 1Gbit bottleneck for every query.
 
 ---
 
@@ -114,15 +187,23 @@ Full failure modes, incident playbooks, and deep dives → [`RUNBOOK.md`](RUNBOO
 
 ## Service endpoints
 
+Application services are behind Traefik with automatic HTTPS via Cloudflare DNS-01 (no inbound ports). The Traefik dashboard is intentionally LAN-only on `http://<nas-ip>:8090`.
+
 | Service | URL | Node |
 |---|---|---|
-| Traefik dashboard | `http://10.0.0.10:8090` *(LAN-only)* | NAS |
-| Authentik | `https://authentik.homelab.local` | NAS |
-| AdGuard Home | `https://adguard.homelab.local` | NAS |
-| Vaultwarden | `https://vaultwarden.homelab.local` | NAS |
-| Portainer | `https://portainer.homelab.local` | NAS |
+| Traefik dashboard | `http://<nas-ip>:8090` *(LAN-only)* | NAS |
+| Authentik | `https://authentik.<domain>` | NAS |
+| AdGuard Home | `https://adguard.<domain>` | NAS |
+| Vaultwarden | `https://vaultwarden.<domain>` | NAS |
+| Portainer | `https://portainer.<domain>` | NAS |
+| Homepage | `https://homepage.<domain>` | NAS |
+| Jellyfin | `https://jellyfin.<domain>` | NAS |
+| Immich | `https://immich.<domain>` | Ryzen VM |
+| Paperless-ngx | `https://paperless.<domain>` | Ryzen VM |
+| TrueNAS UI | `https://nas.<domain>` | NAS |
+| Proxmox | `https://proxmox.<domain>` | NAS → Proxmox |
 
-These URLs use `.homelab.local` as documentation examples. In real deployments with Cloudflare DNS-01, use your real registered domain.
+Immich and Paperless-ngx run on the Ryzen VM but route through the NAS Traefik instance via file provider — Docker socket provider only sees local containers.
 
 ---
 
@@ -131,15 +212,21 @@ These URLs use `.homelab.local` as documentation examples. In real deployments w
 ```
 roles/
 ├── core_services/   # Traefik, AdGuard Home, Authentik, Vaultwarden, Portainer
-└── ssh_hardening/   # SSH policy
+├── media_stack/     # Jellyfin, Homepage
+├── prod_apps/       # Immich, Paperless-ngx, DB backups
+├── common/          # APT baseline, qemu-guest-agent
+├── ssh_hardening/   # Shared SSH policy — both nodes
+└── docker_host/     # Docker engine, Portainer Agent
 ```
 
 ```
 group_vars/
-├── all.yml          # Global: domains, IPs, shared endpoints, DNS resolvers
-└── n100.yml         # NAS-specific: paths, versions, compatibility toggles
+├── all.yml               # Global: domains, IPs, shared endpoints, DNS resolvers
+├── n100.yml              # NAS-specific: paths, versions, compatibility toggles
+└── docker_nodes.yml      # Ryzen: Docker user, NFS mounts, node-specific values
 
-secrets.yml          # Vault: tokens, passwords, API keys — never in git
+roles/prod_apps/defaults/main.yml   # Default stack paths for Immich/Paperless — override in docker_nodes.yml
+secrets.yml                         # Vault: tokens, passwords, API keys — never in git
 ```
 
 Roles are independently deployable via tags. IPs, domains, versions → `group_vars`. Credentials → `secrets.yml` (vault).
@@ -154,24 +241,38 @@ ansible-galaxy collection install -r requirements.yml
 
 # Dry run first
 ansible-playbook -i inventory.ini deploy_n100.yml --check --diff
+ansible-playbook -i inventory.ini deploy_docker_nodes.yml --check --diff
 
-# Full core deploy
-ansible-playbook -i inventory.ini deploy_n100.yml
+# Full deploy
+ansible-playbook -i inventory.ini deploy_n100.yml             # NAS: core services + media
+ansible-playbook -i inventory.ini deploy_docker_nodes.yml     # Ryzen: Docker host + prod apps
 
-# Single service
+# Single service — NAS
 ansible-playbook -i inventory.ini deploy_n100.yml --tags traefik
 ansible-playbook -i inventory.ini deploy_n100.yml --tags adguard
 ansible-playbook -i inventory.ini deploy_n100.yml --tags authentik
 ansible-playbook -i inventory.ini deploy_n100.yml --tags vaultwarden
 ansible-playbook -i inventory.ini deploy_n100.yml --tags portainer
+ansible-playbook -i inventory.ini deploy_n100.yml --tags core    # entire core_services role
+ansible-playbook -i inventory.ini deploy_n100.yml --tags media   # Jellyfin + Homepage
+
+# Single service — Ryzen
+ansible-playbook -i inventory.ini deploy_docker_nodes.yml --tags immich
+ansible-playbook -i inventory.ini deploy_docker_nodes.yml --tags paperless
+ansible-playbook -i inventory.ini deploy_docker_nodes.yml --tags backups
+
+# SSH hardening — both nodes
 ansible-playbook -i inventory.ini deploy_n100.yml --tags hardening
+ansible-playbook -i inventory.ini deploy_docker_nodes.yml --tags hardening
 ```
+
+`site.yml` is a compatibility alias → imports `deploy_docker_nodes.yml`.
 
 ---
 
 ## Security
 
-- **No inbound WAN/NAT ports** — HTTPS via Cloudflare DNS-01. Router/firewall remains closed; LAN service ports are intentionally exposed on the NAS.
+- **No inbound WAN/NAT ports** — HTTPS via Cloudflare DNS-01. Router/firewall remains closed; only selected LAN ports are exposed on NAS/Ryzen where needed.
 - **SSO via Authentik** — ForwardAuth on Traefik, toggled per-service via `enable_authentik_protection`.
 - **SSH hardening** — `ssh_hardening` role, `--tags hardening`.
 - **Secrets** — ansible-vault only. Never plaintext, never in git.
@@ -184,10 +285,3 @@ ansible-playbook -i inventory.ini deploy_n100.yml --tags hardening
 ## See also
 
 [`RUNBOOK.md`](RUNBOOK.md) — operational commands, incident playbooks, engineering deep dives, smoke checklist
-
----
-
-## License
-
-Licensed under the Apache License, Version 2.0.
-See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

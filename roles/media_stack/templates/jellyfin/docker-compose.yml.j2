@@ -1,0 +1,41 @@
+---
+services:
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:{{ jellyfin_version }}
+    container_name: jellyfin
+    environment:
+      - PUID={{ app_uid }}
+      - PGID={{ app_gid }}
+      - TZ={{ timezone }}
+    volumes:
+      - {{ docker_config_dir }}/jellyfin:/config
+      - {{ media_root_dir }}:/data/media
+    ports:
+      - "{{ jellyfin_service_port }}:8096"
+    devices:
+      # Pass-through Intel iGPU for hardware transcoding (QuickSync)
+      - /dev/dri:/dev/dri
+    dns:
+{% for dns_server in (public_dns_servers | default(['1.1.1.1', '8.8.8.8'])) %}
+      - {{ dns_server }}
+{% endfor %}
+    restart: unless-stopped
+    networks:
+      - proxy_net
+    labels:
+      - "traefik.enable=true"
+      # Route definition using the domain variable
+      - "traefik.http.routers.jellyfin.rule=Host(`{{ jellyfin_domain }}`)"
+      # Ensure it uses the HTTPS entrypoint (HTTP to HTTPS redirect is handled globally)
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      # Tell Traefik to use the wildcard certificate resolver
+      - "traefik.http.routers.jellyfin.tls.certresolver=myresolver"
+      # Define the internal port for the container
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+networks:
+  proxy_net:
+    external: true

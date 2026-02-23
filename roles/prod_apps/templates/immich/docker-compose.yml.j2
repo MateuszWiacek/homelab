@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    volumes:
+      # Heavy originals on NAS HDD
+      - {{ mnt_photos }}:/usr/src/app/upload
+      # Thumbnails on NAS SSD for good gallery performance without filling Ryzen NVMe
+      - {{ mnt_fast_data }}/immich/thumbs:/usr/src/app/upload/thumbs
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    ports:
+      - "{{ immich_service_port }}:2283"
+    restart: always
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    volumes:
+      # AI Models kept locally on Ryzen NVMe to avoid 1Gbit bottleneck during startup/processing
+      - {{ immich_model_cache_dir }}:/cache
+    env_file:
+      - .env
+    restart: always
+
+  postgres:
+    container_name: immich_postgres
+    image: "{{ immich_postgres_image }}"
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE_NAME}
+    volumes:
+      # Database on local NVMe to eliminate network latency for UI interactions
+      - {{ immich_db_dir }}:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    container_name: immich_redis
+    image: "{{ immich_redis_image }}"
+    restart: always

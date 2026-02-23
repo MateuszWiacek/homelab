@@ -13,3 +13,5 @@
       tags: ['security', 'ssh', 'hardening']
     - role: core_services  # Traefik, AdGuard, Authentik, Vaultwarden, Portainer
       tags: ['core']
+    - role: media_stack  # Jellyfin, Homepage
+      tags: ['media']

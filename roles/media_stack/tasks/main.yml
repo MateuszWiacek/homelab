@@ -1,0 +1,13 @@
+---
+# ============================================================
+# MEDIA STACK: Jellyfin, Homepage
+# Entertainment and infrastructure dashboard for the home lab.
+# ============================================================
+
+- name: "Media Stack | Deploy Homepage dashboard"
+  ansible.builtin.import_tasks: homepage.yml
+  tags: [homepage]
+
+- name: "Media Stack | Deploy Jellyfin"
+  ansible.builtin.import_tasks: jellyfin.yml
+  tags: [jellyfin]

@@ -1,0 +1,35 @@
+---
+services:
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:{{ paperless_version }}
+    container_name: paperless_webserver
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "{{ paperless_service_port }}:8000"
+    volumes:
+      - "{{ paperless_data_dir }}:/usr/src/paperless/data"
+      - "{{ mnt_docs }}/archive:/usr/src/paperless/media"
+      - "{{ mnt_docs }}/consume:/usr/src/paperless/consume"
+    env_file:
+      - .env
+
+  db:
+    image: "{{ paperless_postgres_image }}"
+    container_name: paperless_db
+    restart: unless-stopped
+    volumes:
+      - "{{ paperless_db_dir }}:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: ${PAPERLESS_DBPASS}
+
+  redis:
+    image: "{{ paperless_redis_image }}"
+    container_name: paperless_redis
+    restart: unless-stopped
+    volumes:
+      - "{{ paperless_redis_dir }}:/data"

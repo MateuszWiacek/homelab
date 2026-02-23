@@ -14,6 +14,7 @@ authentik_gid: "1000"
 traefik_version: "v3"
 traefik_publish_api_port: false
 traefik_dashboard_via_router: true
+enable_remote_apps_routes: false
 
 # AdGuard setup wizard port toggle
 # Set to true only for first deploy to access the setup wizard on port 3000.

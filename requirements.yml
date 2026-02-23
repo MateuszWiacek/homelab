@@ -3,3 +3,6 @@ collections:
   # Core deploy dependency: Docker modules
   - name: community.docker
     version: ">=3.4.0"
+  # Required by prod_apps role for NFS mounts.
+  - name: ansible.posix
+    version: ">=1.5.0"

@@ -1,0 +1,44 @@
+---
+- Infrastructure:
+    - Proxmox VE:
+        icon: proxmox.png
+        href: "https://{{ proxmox_domain }}"
+        description: "Hypervisor & VM Management"
+          
+    - TrueNAS:
+        icon: truenas.png
+        href: "https://{{ truenas_domain }}"
+        description: "Core Storage & Apps"
+{% if truenas_api_key is defined and (truenas_api_key | length) > 0 %}
+        widget:
+          type: truenas
+          url: "{{ truenas_widget_url }}"
+          key: "{{ truenas_api_key }}"
+          verify: false
+{% endif %}
+
+- Security & Identity:
+    - Authentik:
+        icon: authentik.png
+        href: "https://{{ authentik_domain }}"
+        description: "SSO & Identity Provider"
+{% if authentik_api_token is defined and (authentik_api_token | length) > 0 %}
+        widget:
+          type: authentik
+          url: "{{ authentik_internal_url }}"
+          key: "{{ authentik_api_token }}"
+{% endif %}
+
+    - AdGuard Home:
+        icon: adguard-home.png
+        href: "https://{{ adguard_domain }}"
+        description: "Network-wide DNS protection"
+
+- Routing & Edge:
+    - Traefik:
+        icon: traefik.png
+        href: "{{ traefik_internal_url }}"
+        description: "Edge Router & Reverse Proxy"
+        widget:
+          type: traefik
+          url: "{{ traefik_internal_url }}"

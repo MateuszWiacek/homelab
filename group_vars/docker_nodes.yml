@@ -1,0 +1,33 @@
+---
+# === Identity ===
+ansible_user: admin
+ansible_ssh_private_key_file: ~/.ssh/Mateusz_key
+
+# === Docker host ===
+portainer_agent_version: "latest"
+
+# === NFS Source Paths (what TrueNAS exports) ===
+nas_source_config: "/mnt/ssd_apps/appdata/docker/config"
+nas_source_data: "/mnt/ssd_apps/appdata/docker/data"
+nas_source_photos: "/mnt/storage_1/photos/library"
+nas_source_docs: "/mnt/storage_1/documents"
+nas_source_media: "/mnt/storage_1/media"
+
+# === Mount Points (Logical Paths on Ryzen VM) ===
+mnt_fast_config: "/mnt/nas_fast_config"
+mnt_fast_data: "/mnt/nas_fast_data"
+mnt_photos: "/mnt/nas_photos"
+mnt_docs: "/mnt/nas_documents"
+mnt_media: "/mnt/nas_media"
+
+# === Production app versions ===
+# Use latest only for initial bootstrap when stable versions are not yet known.
+# After validation, pin exact tags for reproducible deploys.
+immich_version: "release"
+paperless_version: "latest"
+
+# Internal dependencies (override only if required)
+immich_postgres_image: "tensorchord/pgvecto-rs:pg14-v0.2.0"
+immich_redis_image: "redis:6.2-alpine"
+paperless_postgres_image: "docker.io/library/postgres:16-alpine"
+paperless_redis_image: "docker.io/library/redis:7-alpine"

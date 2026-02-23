@@ -1,0 +1,59 @@
+---
+# 1. Ensure stack root exists and stays owned by the host app user
+- name: "Paperless | Ensure stack root directory"
+  ansible.builtin.file:
+    path: "{{ paperless_stack_dir }}"
+    state: directory
+    owner: "{{ app_uid }}"
+    group: "{{ app_gid }}"
+    mode: '0755'
+
+# 2. Ensure runtime directories exist (container may adjust ownership internally)
+- name: "Paperless | Ensure runtime directories exist"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ paperless_db_dir }}"
+    - "{{ paperless_redis_dir }}"
+    - "{{ paperless_data_dir }}"
+
+# 3. Pre-create subdirectories on NFS mount to prevent Docker chmod errors
+# We create these as root via command to bypass NFS metadata restrictions
+- name: "Paperless | Pre-create NFS subdirectories"
+  ansible.builtin.command: "mkdir -p {{ item }}"
+  args:
+    creates: "{{ item }}"
+  loop:
+    - "{{ mnt_docs }}/consume"
+    - "{{ mnt_docs }}/archive"
+    - "{{ mnt_docs }}/data"
+    - "{{ mnt_docs }}/media"
+
+# 4. Deploy configuration files from templates
+- name: "Paperless | Deploy docker-compose file"
+  ansible.builtin.template:
+    src: "paperless/docker-compose.yml.j2"
+    dest: "{{ paperless_stack_dir }}/docker-compose.yml"
+    owner: "{{ app_uid }}"
+    group: "{{ app_gid }}"
+    mode: '0644'
+
+- name: "Paperless | Deploy environment file"
+  ansible.builtin.template:
+    src: "paperless/env.j2"
+    dest: "{{ paperless_stack_dir }}/.env"
+    owner: "{{ app_uid }}"
+    group: "{{ app_gid }}"
+    mode: '0600'
+  no_log: true
+
+# 5. Launch the Paperless-ngx stack using Docker Compose V2
+- name: "Paperless | Start containers"
+  community.docker.docker_compose_v2:
+    project_src: "{{ paperless_stack_dir }}"
+    state: present
+    files:
+      - docker-compose.yml
+    env_files:
+      - .env

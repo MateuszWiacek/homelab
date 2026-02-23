@@ -1,0 +1,25 @@
+---
+# Production app image/version defaults.
+# Override in group_vars/docker_nodes.yml for pinned production versions.
+immich_version: "release"
+paperless_version: "latest"
+
+immich_postgres_image: "tensorchord/pgvecto-rs:pg14-v0.2.0"
+immich_redis_image: "redis:6.2-alpine"
+
+paperless_postgres_image: "docker.io/library/postgres:16-alpine"
+paperless_redis_image: "docker.io/library/redis:7-alpine"
+
+# Local stack directories (override if you want a different layout)
+app_stacks_root: "/opt"
+immich_stack_dir: "{{ app_stacks_root }}/immich"
+immich_db_dir: "{{ immich_stack_dir }}/postgres"
+immich_model_cache_dir: "{{ immich_stack_dir }}/model-cache"
+paperless_stack_dir: "{{ app_stacks_root }}/paperless"
+paperless_db_dir: "{{ paperless_stack_dir }}/db"
+paperless_redis_dir: "{{ paperless_stack_dir }}/redis"
+paperless_data_dir: "{{ paperless_stack_dir }}/data"
+backups_root_dir: "{{ app_stacks_root }}/backups"
+
+# Backup policy
+db_backup_retention_days: 7

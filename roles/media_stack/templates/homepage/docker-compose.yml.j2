@@ -1,0 +1,30 @@
+---
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:{{ homepage_version }}
+    container_name: homepage
+    restart: unless-stopped
+    environment:
+      - HOMEPAGE_ALLOWED_HOSTS={{ homepage_domain }}
+    networks:
+      - proxy_net
+    volumes:
+      - {{ docker_config_dir }}/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homepage.rule=Host(`{{ homepage_domain }}`)"
+      - "traefik.http.routers.homepage.entrypoints=websecure"
+      - "traefik.http.routers.homepage.tls.certresolver=myresolver"
+      - "traefik.http.services.homepage.loadbalancer.server.port=3000"
+{% if enable_authentik_protection %}
+      - "traefik.http.routers.homepage.middlewares=authentik-auth@file"
+{% endif %}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  proxy_net:
+    external: true

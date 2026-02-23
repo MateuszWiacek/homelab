@@ -28,6 +28,24 @@ http:
       tls:
         certResolver: "myresolver"
 
+{% if enable_remote_apps_routes %}
+    paperless:
+      rule: "Host(`{{ paperless_domain }}`)"
+      service: "paperless"
+      entryPoints:
+        - "websecure"
+      tls:
+        certResolver: "myresolver"
+
+    immich:
+      rule: "Host(`{{ immich_domain }}`)"
+      service: "immich"
+      entryPoints:
+        - "websecure"
+      tls:
+        certResolver: "myresolver"
+{% endif %}
+
   services:
     truenas:
       loadBalancer:
@@ -40,6 +58,20 @@ http:
         servers:
           - url: "{{ proxmox_internal_url }}"
         serversTransport: "insecureTransport"
+
+{% if enable_remote_apps_routes %}
+    paperless:
+      loadBalancer:
+        servers:
+          - url: "http://{{ ryzen_ip }}:{{ paperless_service_port }}"
+        passHostHeader: true
+
+    immich:
+      loadBalancer:
+        servers:
+          - url: "http://{{ ryzen_ip }}:{{ immich_service_port }}"
+        passHostHeader: true
+{% endif %}
 
   serversTransports:
     insecureTransport:

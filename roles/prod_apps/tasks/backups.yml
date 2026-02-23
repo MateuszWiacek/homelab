@@ -1,0 +1,35 @@
+---
+- name: "Backups | Install cron daemon"
+  ansible.builtin.apt:
+    name: cron
+    state: present
+
+- name: "Backups | Ensure cron service is running"
+  ansible.builtin.service:
+    name: cron
+    state: started
+    enabled: true
+
+- name: "Backups | Create local backup scripts directory"
+  ansible.builtin.file:
+    path: "{{ backups_root_dir }}"
+    state: directory
+    owner: "{{ app_uid }}"
+    group: "{{ app_gid }}"
+    mode: '0755'
+
+- name: "Backups | Deploy database backup script"
+  ansible.builtin.template:
+    src: "backups/backup_dbs.sh.j2"
+    dest: "{{ backups_root_dir }}/backup_dbs.sh"
+    owner: "{{ app_uid }}"
+    group: "{{ app_gid }}"
+    mode: '0700'
+
+- name: "Backups | Configure daily backup cron job"
+  ansible.builtin.cron:
+    name: "Daily Docker DB Backup"
+    minute: "0"
+    hour: "3"
+    user: "root"
+    job: "/bin/bash {{ backups_root_dir }}/backup_dbs.sh >> /var/log/db_backups.log 2>&1"

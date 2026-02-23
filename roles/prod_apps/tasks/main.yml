@@ -1,0 +1,53 @@
+---
+# ============================================================
+# PROD APPS ROLE (v1.1 release scope)
+# Immich + Paperless on Debian/Ubuntu Docker node with NFS-backed storage
+# ============================================================
+
+- name: "Prod Apps | Install NFS client"
+  ansible.builtin.apt:
+    name: nfs-common
+    state: present
+    cache_valid_time: 3600
+
+- name: "Prod Apps | Create NFS mount points"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ mnt_fast_config }}"
+    - "{{ mnt_fast_data }}"
+    - "{{ mnt_photos }}"
+    - "{{ mnt_docs }}"
+    - "{{ mnt_media }}"
+
+- name: "Prod Apps | Mount NFS shares"
+  ansible.posix.mount:
+    src: "{{ nas_ip }}:{{ item.src }}"
+    path: "{{ item.path }}"
+    fstype: nfs
+    opts: "rw,relatime,soft,intr,tcp,timeo=600,retrans=2"
+    state: mounted
+  loop:
+    - { src: "{{ nas_source_config }}", path: "{{ mnt_fast_config }}" }
+    - { src: "{{ nas_source_data }}", path: "{{ mnt_fast_data }}" }
+    - { src: "{{ nas_source_photos }}", path: "{{ mnt_photos }}" }
+    - { src: "{{ nas_source_docs }}", path: "{{ mnt_docs }}" }
+    - { src: "{{ nas_source_media }}", path: "{{ mnt_media }}" }
+
+- name: "Prod Apps | Ensure local stacks root path exists"
+  ansible.builtin.file:
+    path: "{{ app_stacks_root }}"
+    state: directory
+
+- name: "Prod Apps | Deploy Immich"
+  ansible.builtin.import_tasks: immich.yml
+  tags: [immich]
+
+- name: "Prod Apps | Deploy Paperless-ngx"
+  ansible.builtin.import_tasks: paperless.yml
+  tags: [paperless]
+
+- name: "Prod Apps | Configure automated DB backups"
+  ansible.builtin.import_tasks: backups.yml
+  tags: [backups]

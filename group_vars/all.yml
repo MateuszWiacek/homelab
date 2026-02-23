@@ -2,29 +2,49 @@
 domain_name: "homelab.local"
 timezone: "Europe/Warsaw"
 nas_ip: "10.0.0.10"
+ryzen_ip: "10.0.0.30"
 proxmox_ip: "10.0.0.20"
+
 public_dns_servers:
   - "1.1.1.1"
   - "8.8.8.8"
 
-# === Public service domains ===
+# === Public service domains (anonymized/public branch) ===
 traefik_domain: "traefik.{{ domain_name }}"
 authentik_domain: "authentik.{{ domain_name }}"
 adguard_domain: "adguard.{{ domain_name }}"
 vaultwarden_domain: "vaultwarden.{{ domain_name }}"
 portainer_domain: "portainer.{{ domain_name }}"
+homepage_domain: "homepage.{{ domain_name }}"
+jellyfin_domain: "jellyfin.{{ domain_name }}"
 truenas_domain: "nas.{{ domain_name }}"
-proxmox_domain: "pve.{{ domain_name }}"
+proxmox_domain: "proxmox.{{ domain_name }}"
+paperless_domain: "paperless.{{ domain_name }}"
+immich_domain: "immich.{{ domain_name }}"
 
-# === NAS local endpoints used by Traefik file provider ===
+# === Cross-node app ports ===
+immich_service_port: 2283
+paperless_service_port: 8010
+jellyfin_service_port: 8096
+
+# === Homepage ===
+homepage_title: "My Homelab"
+homepage_base_url: "https://{{ homepage_domain }}"
+
+# === NAS local endpoints used by Traefik file provider/Homepage widgets ===
 truenas_web_port: 81
 proxmox_web_port: 8006
+authentik_api_port: 9000
 adguard_admin_port: 8080
 adguard_setup_port: 3000
 traefik_dashboard_port: 8090
 
 truenas_internal_url: "http://{{ nas_ip }}:{{ truenas_web_port }}"
+truenas_widget_url: "https://{{ nas_ip }}"
 proxmox_internal_url: "https://{{ proxmox_ip }}:{{ proxmox_web_port }}"
+authentik_internal_url: "http://{{ nas_ip }}:{{ authentik_api_port }}"
+adguard_internal_url: "http://{{ nas_ip }}:{{ adguard_admin_port }}"
+traefik_internal_url: "http://{{ nas_ip }}:{{ traefik_dashboard_port }}"
 
 # === Shared UID/GID for mounted app data ===
 app_uid: 1000
