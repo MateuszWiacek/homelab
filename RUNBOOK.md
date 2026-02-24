@@ -1,7 +1,8 @@
 # Ansible Homelab — Runbook (Full Stack)
 
 Operational reference for the NAS core node.
-For architecture and deployment overview → [`README.md`](README.md)
+For architecture deep dive → [`ARCHITECTURE.md`](ARCHITECTURE.md)
+For quick deployment overview → [`README.md`](README.md)
 
 ---
 
